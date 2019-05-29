@@ -1,23 +1,27 @@
 *2012
 *updated on April 16th,2018
+*updated on May 27th 2019: add educational expenditure 
  **STEP 1: calcuate total size of hhd at oblast level and community level to prepare calculating migration networks;
 clear
-use "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2012\control\cc_hh.dta"
+*use "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2012\control\cc_hh.dta"
+use "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\data2012\control\cc_hh.dta"
+
 sort cluster hhid12 
 by cluster: gen thh=_N  //total hh within a community;
 sort oblast hhid12
 by oblast: gen ohh=_N // total hh within oblast;
 rename hhid12 hhid
 keep hhid cluster oblast thh ohh
-save "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2012\control\hh_cc_2012",replace
-
+*save "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2012\control\hh_cc_2012",replace
+save "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\data2012\control\hh_cc_2012.dta" , replace 
 
 
 
 ***STEP2: calculate hh level traits************
 
 clear
-cd "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2012\household"
+*cd "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2012\household"
+cd "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\data2012\household"
 *gender age ethnicity maritalstatus totalpp no_kid no_old 
 use hh1a.dta
 egen no_pp= max (pid ) , by (hhid)
@@ -29,6 +33,14 @@ sort hhid
 keep if h104==1
 duplicates drop
 save hh1a_m_2012, replace
+
+
+//education expenditure 
+use hh1b.dta, clear 
+gen schexp=h121_4
+keep hhid schexp
+duplicates drop
+save hh1b_m_2012, replace 
 
 
 //land 
@@ -70,7 +82,7 @@ duplicates drop
 sort hhid
 save hh4a_m_2012, replace
 
-
+*non-food exp
 use hh4b.dta, clear
 * usd 47.01 Eur 60.44  RUB 1.51
 /* som, per month */
@@ -151,7 +163,8 @@ duplicates drop
 
 ***********merge total hhsize within a community 
 // create migration network : percentage of hh that has at least one migrants over the past 5 years in the community;
-merge 1:m hhid using "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2012\control\hh_cc_2012.dta"
+*merge 1:m hhid using "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2012\control\hh_cc_2012.dta"
+merge 1:m hhid using "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\data2012\control\hh_cc_2012.dta"
 
 egen tmig_com = sum(pmig), by(cluster)  // total number of migrations at community level 
 egen tmig_obl = sum(pmig), by(oblast)  // total number of migrations at oblast level 
@@ -223,7 +236,7 @@ sort hhid
 save hh7_m_2012, replace 
 
 *drop _merge
-merge  hhid using  hh1a_m_2012 hh2c_2012 hh3_m_2012  hh4a_m_2012 hh4b_m_2012 hh4c_m_2012 hh5_m_2012 hh6_m_2012 hh6a_m_2012 hh6b_m_2012 hh7_m_2012
+merge  hhid using  hh1a_m_2012 hh1b_m_2012 hh2c_2012 hh3_m_2012  hh4a_m_2012 hh4b_m_2012 hh4c_m_2012 hh5_m_2012 hh6_m_2012 hh6a_m_2012 hh6b_m_2012 hh7_m_2012
 drop _merge*
 
 
@@ -340,7 +353,19 @@ foreach x of var * {
 *save G:\RA\RAship_Dr_Chi\Community_resiliency\paper3\LIK_10_13_stata\stata\panel\hhmerged_2012,replace 
 duplicates drop  
 sort hhid 
-save G:\RA\KYZpanel\hhmerged_2012,replace 
-*save G:\RA\RAship Dr Chi\Community resiliency paper3\LIK_10_13_stata\stata\panel\hhmerged_2012,replace
-clear
+*save G:\RA\KYZpanel\hhmerged_2012,replace 
+save "E:\revise&resubmit\KYZpaper\paper3\data_revise\hhmerged_2012", replace 
 
+
+
+
+*erase temporary files 
+*erase temporary files 
+#delimit;
+local data "hh1a_m_2012.dta hh1b_m_2012.dta hh2c_2012.dta  hh3_m_2012.dta  hh4a_m_2012.dta hh4b_m_2012.dta hh4c_m_2012.dta
+            hh5_m_2012.dta hh6_m_2012.dta hh6a_m_2012.dta hh6b_m_2012.dta hh7_m_2012.dta" ;
+#delimit cr
+
+foreach x of local data {
+erase `x'
+}

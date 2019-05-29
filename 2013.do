@@ -9,7 +9,8 @@ From the original sample of 3,000 households identified in 2010,2,450 households
 	* remittances
 
 clear
-use "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2013\control\cc_hh.dta"
+*use "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2013\control\cc_hh.dta"
+use "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\data2013\control\cc_hh.dta"
 sort psu hhid13 
 by psu: gen thh=_N  //total hh within a community;
 sort oblast hhid13
@@ -17,13 +18,14 @@ by oblast: gen ohh=_N // total hh within oblast;
 rename hhid13 hhid
 rename psu cluster
 keep hhid cluster oblast thh ohh
-save "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2013\control\hh_cc_2013.dta",replace
-
+*save "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2013\control\hh_cc_2013.dta",replace
+save "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\data2013\control\hh_cc_2013.dta" , replace 
 
   
 *2013 
 clear
-cd "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2013\household"
+*cd "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2013\household"
+cd "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\data2013\household"
 use hh1a.dta,replace
 egen no_pp= max (pid ) , by (hhid)
 egen no_childr = sum(h103a < 18), by(hhid)
@@ -36,6 +38,13 @@ duplicates drop
 save hh1a_m_2013, replace
 
 
+//education expenditure 
+use hh1b.dta, clear 
+gen schexp=h121_4
+keep hhid schexp
+duplicates drop
+save hh1b_m_2013, replace 
+
 
 clear 
 use hh2c.dta
@@ -44,8 +53,18 @@ replace land=(h224*h227_s)/100 if h227_s !=. & h224==1
 replace land=0 if  h224==0
 la var land "own land (hectar)"
 sort hhid
+keep hhid land
+duplicates drop 
 save hh2c_2013, replace
 
+
+* any type of ah ag activity;
+use hh3
+gen agactivity = (h301 ==1) 
+sort hhid
+keep hhid ag 
+duplicates drop
+save hh3_m_2013, replace 
 
 
 *food expenses;
@@ -61,7 +80,9 @@ duplicates drop
 keep foodexp hhid 
 duplicates drop
 sort hhid
-save hh4a_m, replace
+save hh4a_m_2013, replace
+
+
 
 *non-food expenses : consumer goods, household services transportation, medical care  ;
 use hh4b.dta
@@ -102,17 +123,19 @@ keep nonfood cgoodsexp medexp commexp housing eventexp otherexp hhid
 duplicates  drop 
 *list nonfood cgoodsexp medexp commexp housing eventexp otherexp  in 1/30
 sort hhid
-save hh4b_m, replace
+save hh4b_m_2013, replace
 
+
+ 
 * expences on events ;
 use hh4c.dta
 egen expev=total (h415) , by (hhid)
 sum (expev)
 sort hhid
 keep hhid expev
-save hh4c_m, replace 
+save hh4c_m_2013, replace 
 
-
+ 
 *source of income;
 
 clear
@@ -126,23 +149,26 @@ gen annincome=income_labor *12
 keep  ag_in other_in annincome hhid
 duplicates drop 
 sort hhid
-save hh5a_m, replace 
+save hh5a_m_2013, replace 
 
-
+ 
 use hh5b
 egen income_social = total (h504) , by (hhid)
 gen aincome_social=12*income_social
 keep aincome_social hhid
 duplicates drop 
 sort hhid 
-save hh5b_m, replace
+save hh5b_m_2013, replace
+
+
+
 
 *current labor migration
 clear
 use hh6a.dta
 sort hhid
 gen mig= (h601>=1 & !missing (h601))
-gen pastmig=(h600>=1 & !missing (h601))  // have ppl worked past 5yrs 
+gen pastmig=(h600>=1 & !missing (h600))  // have ppl worked past 5yrs 
 gen pmig=(mig==1 | pastmig==1) //at least one people migrated in last five years ; 
 
 tab h601
@@ -158,7 +184,7 @@ keep mig pmig hhid destination
 
 ***********merge total hhsize within a community 
 // create migration network : percentage of hh that has at least one migrants over the past 5 years in the community;
-merge 1:m hhid using "G:\RA\RAship Dr Chi\Community resiliency\paper3\LIK_10_13_stata\stata\data2013\control\hh_cc_2013.dta"
+merge 1:m hhid using "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\data2013\control\hh_cc_2013.dta"
 egen tmig_com = sum(pmig), by(cluster)  // total number of migrations at community level 
 egen tmig_obl = sum(pmig), by(oblast)  // total number of migrations at oblast level 
 
@@ -171,8 +197,10 @@ la var ptcobl "migration network (oblast) "
 
 keep hhid mig ptmcom ptcobl destination cluster
 sort hhid
-save hh6a_m, replace 
+save hh6a_m_2013, replace 
 
+
+ 
 /*
    russia  |        525       92.11       92.11
 kazakhstan  |         40        7.02       99.12
@@ -197,7 +225,7 @@ replace rem = 0 if rem ==.
 gen rem_g =h625_s if h625_c==1
 replace rem_g=h625_s * 48.4386 if h625_c==2
 replace rem_g=h625_s * 1.5223 if h625_c==3
-replace rem_g= h625_s * 64.3536 if  h625_c==4
+replace rem_g=h625_s * 64.3536 if  h625_c==4
 replace rem_g =0 if rem_g ==. 
 
 gen rem_total=rem + rem_g
@@ -208,21 +236,22 @@ summarize rem_total rem rem_g
 sort hhid
 keep hhid rem_total rem rem_g
 
-save hh6b_m , replace
+save hh6b_m_2013 , replace
 
 *outside shocks;
 use hh7.dta
 sort hhid
-save hh7_m, replace 
+save hh7_m_2013, replace 
 
 use cc_hh
 g hhid=hhid13
 sort hhid
 drop hhid13
-save cc_hh_m, replace 
+save cc_hh_m_2013, replace 
 
 *drop _merge
-merge  hhid  using cc_hh_m hh0_m hh1a_m hh1b_m hh2c_2013 hh2a_m hh4c_m hh3_m hh4a_m hh4b_m hh5a_m hh5b_m  hh6a_m hh6b_m hh7_m
+merge hhid  using cc_hh_m_2013 hh1a_m_2013 hh1b_m_2013  hh2c_2013 hh2a_m hh4c_m hh3_m hh4a_m hh4b_m hh5a_m hh5b_m  hh6a_m hh6b_m hh7_m
+
 
 
 *IV
@@ -263,28 +292,22 @@ gen rural = (residence ==2)
 
 * DV food expences
 gen totalexp=foodexp+nonfood
-gen  totalexp_2=foodexp+nonfood+expev
+gen  totalexp_2=foodexp+nonfood+expev+schexp   // food,nonfood, event, school 
 summarize foodexp nonfood expev totalexp income
 
-*gen food_1=foodexp/totalexp
 gen food_2=foodexp/totalexp_2 
-*gen food_3= foodexp/ (foodexp+nonfood)
-*gen med_1=medexp/totalexp
 gen med_2=medexp/totalexp_2
-*gen med_3=medexp/ (foodexp+nonfood)
-*gen housing_1=housingexp/totalexp
 gen housing_2=housing/totalexp_2
-*gen ed_1=edexp/income 
-*gen event_1=expev/totalexp
 gen event_2=expev/totalexp_2
+gen schexp_2= schexp/ totalexp_2
 
 *other expences;
 g cgoods=cgoodsexp/totalexp_2
 gen comm=commexp/totalexp_2
 gen othercom=otherexp/totalexp_2
 
-gen tconsum= food_2+cgoods+med_2+housing_2+event_2+comm+othercom
-*list food_2 cgoods housing_2 med_2 event_2 comm othercom tconsum in 1/30
+gen tconsum= food_2+cgoods+med_2+housing_2+event_2+comm+othercom+schexp_2
+list food_2 cgoods housing_2 med_2 event_2 comm othercom tconsum in 1/30
 
 sum food_2 cgoods housing_2 med_2 event_2 comm othercom 
 
@@ -335,8 +358,8 @@ foreach x of var * {
 duplicates drop
 
 sort hhid2013
-save G:\RA\KYZpanel\hhmerged_2013,replace 
-
+*save G:\RA\KYZpanel\hhmerged_2013,replace 
+save "E:\revise&resubmit\KYZpaper\paper3\data_revise\hhmerged_2013", replace 
 
 /***community-level migration networks*************************************
 clear
@@ -351,3 +374,13 @@ tab c110
 cd "G:\RA\KYZpanel"
 use hhmerged_2013
 */
+
+
+*erase temporary files 
+#delimit;
+local data "hh1a_m_2013.dta hh1b_m_2013.dta hh2c_2013.dta  hh3_m_2013.dta  hh4a_m_2013.dta hh4b_m_2013.dta hh4c_m_2013.dta
+            hh5a_m_2013.dta hh5b_m_2013.dta  hh6a_m_2013.dta hh6b_m_2013.dta hh7_m_2013.dta" ;
+#delimit cr
+foreach x of local data {
+erase `x'
+}

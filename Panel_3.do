@@ -3,13 +3,18 @@
 *step 1 merge three waves ;
 *updated on Apirl 16th, 2018
 *updated on April 22th, 2018
-* task 
+*updated on May27, 2019 
+* task FE-IV method
 set more off 
 clear
-cd "G:\RA\KYZpanel"
+*cd "G:\RA\KYZpanel"
+*cd "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\panel"
+cd "E:\revise&resubmit\KYZpaper\paper3\LIK_10_13_stata\stata\data2013\household"
+
 
 use hhmerged_2013, clear
-rename hhid2013 hhid
+*rename hhid2013 hhid
+rename hhid_2013 hhid 
 foreach var of varlist foodexp2013 cgoodsexp2013 medexp2013 commexp2013 housing2013 otherexp2013 expev2013 annincome2013 rem_total2013 totalexp_22013 {
  g ladj`var'=log(`var') 
  g adj`var'=`var'
@@ -61,7 +66,7 @@ save hhmerged_2011_m, replace
 merge hhid  using hhmerged_2011_m hhmerged_2012_m  hhmerged_2013_m
 
 save hhpanel,replace 
-*****************************\
+*****************************
 clear
 use hhpanel
 drop _merge*
@@ -204,6 +209,8 @@ sum adjfoodexp adjmedexp adjhousing adjexpev adjcgoodsexp  adjcommexp  adjothere
 sort year
 *by year: summarize adjfoodexp adjmedexp adjhousing adjexpev adjcgoodsexp  adjcommexp  adjotherexp ,fvlabel 
 by year: summarize no_old no_kid ,fvlabel 
+by year: summarize iv1 iv2
+
 
 sort year remreceive remreceive 
 by year remreceive: summarize food_2 med_2 housing_2 event_2 cgoods comm othercom 
@@ -416,7 +423,7 @@ esttab sur_2 using remreceive_2.rtf, label se b(3) not r2 replace
 *V1: DV expenditure share ;
 xtset hhid year
 
-local iv "lrem lincome lexp agactivity married no_pp no_old no_kid drought flood coldwinter frosts y1 y2 "
+local iv "lrem lexp agactivity married no_pp no_old no_kid drought flood coldwinter frosts y1 y2 "
 local dv " food_2 cgoods housing_2 med_2 comm event_2 othercom "
 foreach y of local dv {
 qui: xtreg `y' `iv', fe 
@@ -430,11 +437,11 @@ esttab m4_food_2 m4_cgoods m4_housing_2 m4_med_2  m4_event_2 m4_comm m4_othercom
 *Instrumental varible
 ****************
 xtset hhid year
-local ex "lincome lexp agactivity married no_pp no_old no_kid drought flood coldwinter frosts y1 y2"
+local ex "lexp agactivity married no_pp no_old no_kid drought flood coldwinter frosts y1 y2"
 
 local dv "food_2 cgoods housing_2 med_2 comm event_2 othercom"
 foreach y of local dv {
-xtivreg2 `y' `ex' (lrem=iv2), fe    //first
+xtivreg2 `y' `ex' (lrem=iv1 iv2), fe    //first
 eststo iv_`y'
 }
 
@@ -458,7 +465,6 @@ xtreg `y' `ty1' `control', fe
 eststo m4_`y'
 }
 
-
 esttab m4_ladjfoodexp m4_ladjcgoodsexp m4_ladjhousing m4_ladjmedexp  m4_ladjexpev  m4_ladjcommexp m4_ladjotherexp using panefixed_2.rtf, label se b(3) not r2(3) replace 
 
 
@@ -467,9 +473,10 @@ esttab m4_ladjfoodexp m4_ladjcgoodsexp m4_ladjhousing m4_ladjmedexp  m4_ladjexpe
 **************
 local ex "lincome lexp agactivity married no_pp no_old no_kid drought flood coldwinter frosts y1 y2 "
 local dv "ladjfoodexp ladjmedexp ladjhousing ladjexpev ladjcgoodsexp ladjcommexp ladjotherexp"
+//local dv2 "adjfoodexp adjmedexp adjhousing adjexpev adjcgoodsexp adjcommexp adjotherexp"
 
 foreach y of local dv {
-xtivreg2 `y' `ex' (lrem=iv1 iv2), fe    //first
+xtivreg2 `y' `ex' (lrem= iv1 iv2), first fe    //first
 eststo iv2_`y'
 }
 
