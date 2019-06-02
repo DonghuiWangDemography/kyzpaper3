@@ -4,8 +4,6 @@
 * updaated on April 16th, 2018 
 *task : 1. record income 2, retrieve land use information 
 
- **STEP 1: calcuate total size of hhd at oblast level and community level to prepare calculating migration networks;
-
  *updated on May 24, 2019
  *task :  add eduational expenditure 
  *updated on may 29th 2019
@@ -73,20 +71,8 @@ duplicates drop
 save hh1b_m_2011, replace 
 
 
-*3.land 
-//100 sotka = 1 hectare = 2.4 acres. 
-use hh2c.dta,clear
-gen land_i=h217*h220_g if h220_g !=. & h216==1  //hecter 
-replace land_i=(h217*h220_s)/100 if h220_s !=. & h216==1
-replace land_i=0 if  h216==0
-bysort hhid: egen land=total(land_i)
-keep hhid land 
-duplicates drop
-la var land "own land (hectar)"
-save hh2c_2011, replace
-
 *4.ag activity;
-use hh3,cear
+use hh3,clear
 gen agactivity = (h301 ==1) 
 sort hhid
 keep hhid ag 
@@ -103,7 +89,6 @@ replace h401a_new=h401a*52 if h401b==1
 replace h401a_new=h401a*12 if h401b==2
 replace h401a_new=h401a*4 if h401b==3
 egen foodexp = total(h401a_new), by (hhid)
-duplicates drop
 keep foodexp hhid 
 duplicates drop
 sort hhid
@@ -155,9 +140,9 @@ save hh4c_m_2011, replace
 
 *8.current labor migration
 use hh6.dta, clear 
-sort hhid
-gen mig= (h601>=1 & !missing (h601)) // how many adult members currently live abroad 
-gen pmig=(h600a==1)                  //at least one people migrated in last five years ; 
+misschk h600b h601
+gen mig= (h601>=1)   // how many adult members currently live abroad 
+gen pmig=(h600a==1)  //at least one people migrated in last five years ; 
 keep mig pmig  hhid
 duplicates drop  //2863
 sort hhid 
@@ -184,11 +169,11 @@ save hh6_m_2011, replace
 
 *9.destination countries;
 use hh6a.dta, clear
-gen dest=h605 
-bysort hhid: egen destination=max(dest)
-keep hhid destination
+bysort hhid: egen nrus=total(h605==1)
+bysort hhid: egen nkaz=total(h605==2)
+
+keep hhid nrus nkaz
 duplicates drop  
-sort hhid
 save hh6a_m_2011, replace 
 
 
@@ -238,12 +223,10 @@ save hh7_m_2011, replace
 
 use hh1a_m_2011, clear 
 merge 1:1 hhid using hh1b_m_2011, nogen  
-merge 1:1 hhid using hh2c_2011,   nogen    
 merge 1:1 hhid using hh3_m_2011,  nogen    
 merge 1:1 hhid using hh4a_m_2011, nogen  
 merge 1:1 hhid using hh4b_m_2011, nogen
 merge 1:1 hhid using hh4c_m_2011, nogen
-// merge 1:1 hhid using hh5_m_2011,  nogen 
 merge 1:1 hhid using hh6_m_2011,  nogen
 merge 1:1 hhid using hh6a_m_2011, nogen
 merge 1:1 hhid using hh6b_m_2011, nogen 
@@ -276,7 +259,7 @@ g lrem=log(rem_total+1)
 gen remreceive = (rem_total >0.1) // & rem >0.1 ;
 gen noremreceive= (mig==1 & rem_total==0)
 
-gen remcat=1 if remreceive==1 
+gen     remcat=1 if remreceive==1 
 replace remcat=2 if noremreceive==1 
 replace remcat=3 if mig==0
 label define remcat 1 "Recieve Remettances"   2 "Receive no remittance"  3 "Non migrants"
@@ -290,18 +273,17 @@ g coldwinter = (h701_3==1)
 g frosts = (h701_4==1) 
 replace agactivity =0 if agactivity==.
 
+drop h701*
 
 *****************************************
 *****create of instruments***************
 * (1) unexpected job creation in the destination countries  X age of hh head****
-*generate percetage of pop work in russia
-gen rus=(destination==1) 
 *how many work in russia in the communiy ?
-egen rus_com = sum(rus), by(cluster)  // total number of migrations in russian at community level 
+egen rus_com = sum(nrus), by(cluster)  // total number of migrations in russian at community level 
 
-gen iv1=0.89*rus_com*age 
+gen iv1=0.89*rus_com*hhage 
 *(2)community previous migration flow Xproportion of hh who have at least secondary level of ed
-gen iv2=ptmcom*age
+gen iv2=ptmcom*hhage
 
 la var iv1"unexpected job creation "
 la var iv2 "previous migration flow"
@@ -316,8 +298,8 @@ save "${dir}\data_revise\hhmerged_2011", replace
 
 *erase temporary files 
 #delimit;
-local data "hh1a_m_2011.dta hh1b_m_2011.dta hh2c_2011.dta  hh3_m_2011.dta  hh4a_m_2011.dta hh4b_m_2011.dta hh4c_m_2011.dta
-            hh5_m_2011.dta hh6_m_2011.dta hh6a_m_2011.dta hh6b_m_2011.dta hh7_m_2011.dta" ;
+local data "hh1a_m_2011.dta hh1b_m_2011.dta   hh3_m_2011.dta  hh4a_m_2011.dta hh4b_m_2011.dta hh4c_m_2011.dta
+            hh6_m_2011.dta hh6a_m_2011.dta hh6b_m_2011.dta hh7_m_2011.dta" ;
 #delimit cr
 foreach x of local data {
 erase `x'
