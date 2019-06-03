@@ -11,6 +11,7 @@
  
 clear
 global dir "E:\revise&resubmit\KYZpaper\paper3"  // usb office
+*global dir "G:\revise&resubmit\KYZpaper\paper3"  // home desktop usb
 
 global logs "${dir}\logs"
 global tables "${dir}\tables"
@@ -129,8 +130,8 @@ keep nonfood cgoodsexp medexp commexp housing  otherexp hhid
 duplicates  drop 
 save hh4b_m_2011, replace
 
-*7.expences on events ;
-use hh4c.dta
+*expences on events ;
+use hh4c.dta,clear
 egen expev=total (h415) , by (hhid)
 sum (expev)
 sort hhid
@@ -138,7 +139,18 @@ keep hhid expev
 duplicates drop
 save hh4c_m_2011, replace 
 
-*8.current labor migration
+
+*remittances recoded in income model 
+use hh5.dta, clear  
+g rem=h502*12 if n5==15
+bysort hhid: egen rem_in=max(rem) 
+keep hhid rem_in 
+duplicates drop 
+tempfile in
+save `in.dta',replace 
+
+
+*current labor migration
 use hh6.dta, clear 
 misschk h600b h601
 gen mig= (h601>=1)   // how many adult members currently live abroad 
@@ -151,7 +163,6 @@ sort hhid
 // migration network : percentage of hh that has at least one migrants over the past 5 years in the community;
 merge 1:1 hhid using "${data}\data2011\control\hh_cc_2011.dta", keep(matched)  //144 not matched. 
 
-*list hhid cluster pmig thh ohh in 1/80
 
 egen tmig_com = sum(pmig), by(cluster)  // total number of migrations at community level 
 egen tmig_obl = sum(pmig), by(oblast)  // total number of migrations at oblast level 
@@ -162,7 +173,7 @@ gen ptcobl=tmig_obl/ohh
 la var ptmcom "migration network (community)"
 la var ptcobl "migration network (oblast) "
 
-keep hhid mig ptmcom ptcobl cluster
+keep hhid mig ptmcom ptcobl cluster oblast
 sort hhid
 save hh6_m_2011, replace 
 
@@ -199,19 +210,14 @@ replace rem=h617_s * 64.28*12  if h617_c==4 & h617_t==1
 *euro, year 
 replace rem=h617_s *  64.28  if h617_c==4 & h617_t==2
 
-gen rem_g =h625s if h625c==1
+gen     rem_g =h625s if h625c==1
 replace rem_g=h625s * 46.14 if h625c==2
 replace rem_g=h625s * 1.57 if h625c==3
 replace rem_g= h625s * 64.28  if h625c==4
 replace rem_g =0 if rem_g ==. 
 
-gen rem_total=rem + rem_g
-summarize rem_total rem rem_g
-replace rem_total=0 if rem_total==.
-
-
 sort hhid
-keep hhid rem_total rem rem_g
+keep hhid rem rem_g
 save hh6b_m_2011 , replace
 
 
@@ -232,6 +238,7 @@ merge 1:1 hhid using hh6a_m_2011, nogen
 merge 1:1 hhid using hh6b_m_2011, nogen 
 merge 1:1 hhid using hh7_m_2011,  nogen 
 
+merge 1:1 hhid using `in.dta', nogen
 
 
 *===expense shares=== 
@@ -251,10 +258,12 @@ gen comm_s=commexp/totalexp
 gen otherexp_s=otherexp/totalexp
 
 gen tconsum= food_s+cgoods_s+med_s+housing_s+event_s+comm_s+otherexp_s+schexp_s
-sum food_s cgoods_s med_s housing_s event_s comm_s otherexp_s schexp_s  //looks about right
 
-*===further modification of vars 
+*remittances: remittance income, if missing => remittance at the remittace module 
+g rem_mig=rem+rem_g // remittance asked by household migrants
+egen rem_total=rowmax(rem_in rem_mig)
 replace rem_total=0 if rem_total==.
+
 g lrem=log(rem_total+1) 
 gen remreceive = (rem_total >0.1) // & rem >0.1 ;
 gen noremreceive= (mig==1 & rem_total==0)
