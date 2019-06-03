@@ -6,7 +6,7 @@
 *task: clean01.do does not seem right, go back to the original coding. aka create vars first then merge 
  
 clear
-global dir "E:\revise&resubmit\KYZpaper\paper3"  // usb office
+*global dir "E:\revise&resubmit\KYZpaper\paper3"  // usb office
 global logs "${dir}\logs"
 global tables "${dir}\tables"
 global data "${dir}\LIK_10_13_stata\stata"
@@ -61,17 +61,6 @@ duplicates drop
 save hh1b_m_2012, replace 
 //N=2013
 
-*3.land 
-// //100 sotka = 1 hectare = 2.4 acres. 
-// use hh2c.dta,clear
-// gen land_i=h217*h220_g if h220_g !=. & h216==1  //hecter 
-// replace land_i=(h217*h220_s)/100 if h220_s !=. & h216==1
-// replace land_i=0 if  h216==0
-// bysort hhid: egen land=total(land_i)
-// la var land "own land (hectar)"
-// keep hhid land 
-// save hh2c_2012, replace
-
 
 * ag activity;
 use hh3,clear
@@ -81,7 +70,6 @@ keep hhid agactivity
 duplicates drop
 save hh3_m_2012, replace 
 //N=2783
-
 
 
 *food;
@@ -147,6 +135,15 @@ sort hhid
 keep hhid expev
 save hh4c_m_2012, replace 
 
+*remittance recorded in the income moduel
+use hh5, clear
+g rem=h502*12 if n5==15
+bysort hhid: egen rem_in=max(rem) 
+keep hhid rem_in 
+duplicates drop 
+tempfile in
+save `in.dta',replace 
+
 
 *current labor migration
 *note : the questionaire is different from 2011;
@@ -178,10 +175,10 @@ save hh6_m_2012, replace
 
 *migration destination;
 use hh6a.dta,clear
-gen dest=h605 
-bysort hhid: egen destination=max(dest)
+bysort hhid: egen nrus=total(h605==1)
+bysort hhid: egen nkaz=total(h605==2)
 
-keep hhid destination
+keep hhid nrus nkaz
 duplicates drop 
 save hh6a_m_2012, replace 
 
@@ -220,7 +217,7 @@ replace rem_total=0 if rem_total==.
 replace rem_total=0 if rem_total==.
 g lrem=log( rem_total) 
 
-keep hhid rem_total rem  rem_g
+keep hhid rem  rem_g
 save hh6b_m_2012 , replace
 // N=414
 
@@ -241,6 +238,7 @@ merge 1:1 hhid using hh6_m_2012,  nogen
 merge 1:1 hhid using hh6a_m_2012, nogen
 merge 1:1 hhid using hh6b_m_2012, nogen 
 merge 1:1 hhid using hh7_m_2012,  nogen 
+merge 1:1 hhid using `in.dta', nogen
 
 
 
@@ -265,8 +263,11 @@ gen otherexp_s=otherexp/totalexp
 gen tconsum= food_s+cgoods_s+med_s+housing_s+event_s+comm_s+otherexp_s+schexp_s
 sum food_s cgoods_s med_s housing_s event_s comm_s otherexp_s schexp_s  //looks about right
 
-*===further modification of vars 
+*remittances: remittance income, if missing => remittance at the remittace module 
+g rem_mig=rem+rem_g                 // remittance asked by household migrants
+egen    rem_total=rowmax(rem_in rem_mig) 
 replace rem_total=0 if rem_total==.
+
 g lrem=log(rem_total+1) 
 gen remreceive = (rem_total >0.1) // & rem >0.1 ;
 gen noremreceive= (mig==1 & rem_total==0)
@@ -288,10 +289,8 @@ g frosts = (h701_4==1)
 *****************************************
 *****create of instruments***************
 * (1) unexpected job creation in the destination countries  X age of hh head****
-*generate percetage of pop work in russia
-gen rus=(destination==1) 
 *how many work in russia in the communiy ?
-egen rus_com = sum(rus), by(cluster)  // total number of migrations in russian at community level 
+egen rus_com = sum(nrus), by(cluster)  // total number of migrations in russian at community level 
 
 gen iv1=0.70*rus_com*hhage 
 *(2)community previous migration flow Xproportion of hh who have at least secondary level of ed
@@ -314,12 +313,12 @@ save "${dir}\data_revise\hhmerged_2012", replace
 
 
 
-// *erase temporary files 
-// #delimit;
-// local data "hh1b_m_2012.dta hh2c_2012.dta  hh3_m_2012.dta  hh4a_m_2012.dta hh4b_m_2012.dta hh4c_m_2012.dta
-//             hh6_m_2012.dta hh6a_m_2012.dta hh6b_m_2012.dta hh7_m_2012.dta" ;
-// #delimit cr
-//
-// foreach x of local data {
-// erase `x'
-// }
+*erase temporary files 
+#delimit;
+local data "hh1b_m_2012.dta   hh3_m_2012.dta  hh4a_m_2012.dta hh4b_m_2012.dta hh4c_m_2012.dta
+            hh6_m_2012.dta hh6a_m_2012.dta hh6b_m_2012.dta hh7_m_2012.dta" ;
+#delimit cr
+
+foreach x of local data {
+erase `x'
+}
