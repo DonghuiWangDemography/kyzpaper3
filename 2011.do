@@ -284,22 +284,10 @@ replace agactivity =0 if agactivity==.
 
 drop h701*
 
-*****************************************
-*****create of instruments***************
-* (1) unexpected job creation in the destination countries  X age of hh head****
-*how many work in russia in the communiy ?
-egen rus_com = sum(nrus), by(cluster)  // total number of migrations in russian at community level 
 
-gen iv1=0.89*rus_com*hhage 
-*(2)community previous migration flow Xproportion of hh who have at least secondary level of ed
-gen iv2=ptmcom*hhage
-
-la var iv1"unexpected job creation "
-la var iv2 "previous migration flow"
 foreach x of var * { 
 	rename `x' `x'2011 
 } 
-
 duplicates drop
 sort hhid 
 save "${dir}\data_revise\hhmerged_2011", replace 
