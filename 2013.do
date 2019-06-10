@@ -11,7 +11,7 @@ From the original sample of 3,000 households identified in 2010,2,450 households
 *updated on 05292019
  
 clear
-global dir "E:\revise&resubmit\KYZpaper\paper3"  // usb office
+*global dir "E:\revise&resubmit\KYZpaper\paper3"  // usb office
 global logs "${dir}\logs"
 global tables "${dir}\tables"
 global data "${dir}\LIK_10_13_stata\stata"
@@ -33,9 +33,9 @@ save "${data}\data2013\control\hh_cc_2013.dta" , replace
 *demographics 
 cd "${data}\data2013\household"
 use hh1a.dta,clear  // N=2584
-egen no_pp= max (pid) , by (hhid)
+by hhid: g no_pp=_N
 egen no_childr = sum(h103a < 18), by(hhid)
-egen no_kid = sum(h103_y <= 2007), by(hhid) 
+egen no_kid = sum(h103a <= 6), by(hhid) 
 egen no_old= sum (h103a > 60 ), by (hhid)
 
 *marstat
@@ -203,8 +203,12 @@ replace rem_g=h625_s * 1.5223 if h625_c==3
 replace rem_g=h625_s * 64.3536 if  h625_c==4
 replace rem_g =0 if rem_g ==. 
 
+*remittance violatitlity
+g stable=(h619==1 & h620==1 )
+g volatile= (h619==2 & h620==2)
 
-keep hhid  rem rem_g
+
+keep hhid  rem rem_g stable  volatile
 save hh6b_m_2013 , replace
 
 *outside shocks;
@@ -239,6 +243,7 @@ merge 1:1 hhid using `in.dta', nogen
 * DV food expences
 egen totalexp=rowtotal(foodexp nonfood expev schexp)
 summarize foodexp nonfood expev schexp totalexp 
+g expp=totalexp/no_pp    //expensese per capita
 
 gen food_s=foodexp/totalexp 
 gen med_s=medexp/totalexp
@@ -261,10 +266,10 @@ egen    rem_total=rowmax(rem_in rem_mig)
 replace rem_total=0 if rem_total==.
 
 g lrem=log(rem_total+1) 
-gen remreceive = (rem_total >0.1) // & rem >0.1 ;
-gen noremreceive= (mig==1 & rem_total==0)
+gen remreceive = (rem_total >0) // & rem >0.1 ;
+gen noremreceive= (rem_total==0)
 
-gen remcat=1 if remreceive==1 
+gen     remcat=1 if remreceive==1 
 replace remcat=2 if noremreceive==1 
 replace remcat=3 if mig==0
 label define remcat 1 "Recieve Remettances"   2 "Receive no remittance"  3 "Non migrants"

@@ -29,9 +29,10 @@ save "${data}\data2012\control\hh_cc_2012.dta" , replace
 cd "${data}\data2012\household"
 *demographics 
 use hh1a.dta,clear
-egen no_pp= max (pid ) , by (hhid)
+by hhid: g no_pp=_N
+
 egen no_childr = sum(age < 18), by(hhid)
-egen no_kid = sum(age < 2005), by(hhid) 
+egen no_kid = sum(age < 6), by(hhid) 
 egen no_old= sum (age > 60 ), by (hhid)
 
 clonevar marstat_h=h108 if h104==1 // hh head's marital stataus 
@@ -48,7 +49,7 @@ bysort hhid: egen hhfemale=max(female)
 clonevar ethn=h105 if h104==1
 bysort hhid: egen ethnicity=max(ethn)
 
-keep hhid no_pp no_childr no_childr no_kid no_old marstat hhage hhfemale ethnicity married
+keep hhid no_pp  no_childr no_kid no_old marstat hhage hhfemale ethnicity married
 duplicates drop
 save hh1a_m_2012, replace
 
@@ -217,7 +218,11 @@ replace rem_total=0 if rem_total==.
 replace rem_total=0 if rem_total==.
 g lrem=log( rem_total) 
 
-keep hhid rem  rem_g
+*remittance violatitlity
+g stable=(h619==1 & h620==1 )
+g volatile= (h619==2 & h620==2)
+
+keep hhid rem  rem_g stable volatile
 save hh6b_m_2012 , replace
 // N=414
 
@@ -242,12 +247,12 @@ merge 1:1 hhid using `in.dta', nogen
 
 
 
-
-
 *===expense shares=== 
 * DV food expences
 egen totalexp=rowtotal(foodexp nonfood expev schexp)
 summarize foodexp nonfood expev schexp totalexp 
+g expp=totalexp/no_pp    //expensese per capita
+
 
 gen food_s=foodexp/totalexp 
 gen med_s=medexp/totalexp
@@ -270,7 +275,7 @@ replace rem_total=0 if rem_total==.
 
 g lrem=log(rem_total+1) 
 gen remreceive = (rem_total >0.1) // & rem >0.1 ;
-gen noremreceive= (mig==1 & rem_total==0)
+gen noremreceive= (rem_total==0)
 
 gen remcat=1 if remreceive==1 
 replace remcat=2 if noremreceive==1 
@@ -285,20 +290,6 @@ g flood = ( h701_2 ==1 )
 g coldwinter = (h701_3==1) 
 g frosts = (h701_4==1) 
 
-
-*****************************************
-*****create of instruments***************
-* (1) unexpected job creation in the destination countries  X age of hh head****
-*how many work in russia in the communiy ?
-egen rus_com = sum(nrus), by(cluster)  // total number of migrations in russian at community level 
-
-gen iv1=0.70*rus_com*hhage 
-*(2)community previous migration flow Xproportion of hh who have at least secondary level of ed
-gen iv2=ptmcom*hhage
-
-
-la var iv1"unexpected job creation "
-la var iv2 "previous migration flow"
 
 foreach x of var * { 
 	rename `x' `x'2012

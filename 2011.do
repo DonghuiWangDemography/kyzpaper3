@@ -10,8 +10,8 @@
  *task: clean01.do does not seem right, go back to the original coding. aka create vars first then merge 
  
 clear
-global dir "E:\revise&resubmit\KYZpaper\paper3"  // usb office
-*global dir "G:\revise&resubmit\KYZpaper\paper3"  // home desktop usb
+*global dir "E:\revise&resubmit\KYZpaper\paper3"  // usb office
+global dir "G:\revise&resubmit\KYZpaper\paper3"  // home desktop usb
 
 global logs "${dir}\logs"
 global tables "${dir}\tables"
@@ -40,9 +40,10 @@ clear
 cd "${data}\data2011\household"
 *1.demographcis 
 use hh1a.dta,clear
-egen no_pp= max (pid ) , by (hhid)
+by hhid: g no_pp=_N
+
 egen no_childr = sum(age < 18), by(hhid)
-egen no_kid = sum(age < 2005), by(hhid) 
+egen no_kid = sum(age < 6), by(hhid) 
 egen no_old= sum (age > 60 ), by (hhid)
 clonevar marstat_h=h108 if h104==1 // hh head's marital stataus 
 bysort hhid: egen marstat=max(marstat_h)
@@ -59,7 +60,7 @@ bysort hhid: egen hhfemale=max(female)
 clonevar ethn=h105 if h104==1
 bysort hhid: egen ethnicity=max(ethn)
 
-keep hhid no_pp no_childr no_childr no_kid no_old marstat hhage hhfemale ethnicity married
+keep hhid no_pp no_childr  no_kid no_old marstat hhage hhfemale ethnicity married
 duplicates drop
 save hh1a_m_2011, replace
 
@@ -163,9 +164,9 @@ sort hhid
 // migration network : percentage of hh that has at least one migrants over the past 5 years in the community;
 merge 1:1 hhid using "${data}\data2011\control\hh_cc_2011.dta", keep(matched)  //144 not matched. 
 
-
 egen tmig_com = sum(pmig), by(cluster)  // total number of migrations at community level 
 egen tmig_obl = sum(pmig), by(oblast)  // total number of migrations at oblast level 
+
 
 gen ptmcom=tmig_com/thh  //percentage of migration at community level; 
 gen ptcobl=tmig_obl/ohh
@@ -180,16 +181,18 @@ save hh6_m_2011, replace
 
 *9.destination countries;
 use hh6a.dta, clear
+g rk=(h605==1 | h605==2 )
 bysort hhid: egen nrus=total(h605==1)
 bysort hhid: egen nkaz=total(h605==2)
 
-keep hhid nrus nkaz
+keep hhid nrus nkaz rk
 duplicates drop  
+drop if hhid==6186 & rk==0
 save hh6a_m_2011, replace 
 
 
 
-*10.remittances  ;
+*6b.remittances  ;
 use hh6b.dta,clear
 
 *  46.14   64.28   1.57 
@@ -216,13 +219,28 @@ replace rem_g=h625s * 1.57 if h625c==3
 replace rem_g= h625s * 64.28  if h625c==4
 replace rem_g =0 if rem_g ==. 
 
+*remittance violatitlity
+g stable=(h619==1 & h620==1 )
+g volatile= (h619==2 & h620==2)
+
+*where spent remittances
+g edu_sp=(h621_1==1) 
+g med_sp=(h621_2==1)
+g event_sp=(h621_3==1 | h621_4==1 )
+g food_sp=(h621_7==1)
+
+
 sort hhid
-keep hhid rem rem_g
+keep hhid rem rem_g stable volatile
+duplicates drop 
 save hh6b_m_2011 , replace
 
 
-*11.outside shocks;
-use hh7.dta
+
+*7outside shocks;
+use hh7.dta, clear
+drop h701_15  // exclude shapf fall of remittances
+
 sort hhid
 save hh7_m_2011, replace 
 
@@ -243,9 +261,9 @@ merge 1:1 hhid using `in.dta', nogen
 
 *===expense shares=== 
 egen totalexp=rowtotal(foodexp nonfood expev schexp)
-summarize foodexp nonfood expev schexp totalexp 
+g expp=totalexp/no_pp    //expensese per capita
 
-*gen food_1=foodexp/totalexp
+
 gen food_s=foodexp/totalexp 
 gen med_s=medexp/totalexp
 gen housing_s=housing/totalexp
@@ -260,13 +278,13 @@ gen otherexp_s=otherexp/totalexp
 gen tconsum= food_s+cgoods_s+med_s+housing_s+event_s+comm_s+otherexp_s+schexp_s
 
 *remittances: remittance income, if missing => remittance at the remittace module 
-g rem_mig=rem+rem_g // remittance asked by household migrants
+g    rem_mig=rem+rem_g // remittance asked by household migrants
 egen rem_total=rowmax(rem_in rem_mig)
 replace rem_total=0 if rem_total==.
 
-g lrem=log(rem_total+1) 
-gen remreceive = (rem_total >0.1) // & rem >0.1 ;
-gen noremreceive= (mig==1 & rem_total==0)
+g   lrem=log(rem_total+1) 
+gen remreceive = (rem_total >0 & rem_total<.) 
+gen noremreceive= (rem_total==0)   // only 461 household has received remittances 
 
 gen     remcat=1 if remreceive==1 
 replace remcat=2 if noremreceive==1 
@@ -280,10 +298,10 @@ g drought = (h701_1 ==1  )
 g flood = ( h701_2 ==1 )
 g coldwinter = (h701_3==1) 
 g frosts = (h701_4==1) 
+
 replace agactivity =0 if agactivity==.
 
 drop h701*
-
 
 foreach x of var * { 
 	rename `x' `x'2011 
